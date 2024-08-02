@@ -24,10 +24,18 @@ const style = {
 export default function Home() {
   const [pantry, setPantry] = useState([]);
 
-  const [open, setOpen] = useState(false);
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-
+  const [openAddModal, setOpenAddModal] = useState(false);
+  const [openRemoveModal, setOpenRemoveModal] = useState(false);
+  const handleOpenAddModal = () => setOpenAddModal(true);
+  const [itemQuantity, setItemQuantity] = useState(1);
+  const handleCloseAddModal = () => setOpenAddModal(false);
+  const handleOpenRemoveModal = (name) => {
+    setRemoveItemName(name);
+    setOpenRemoveModal(true);
+  };
+  const handleCloseRemoveModal = () => setOpenRemoveModal(false);
+  const [removeItemName, setRemoveItemName] = useState('');
+  const [removeQuantity, setRemoveQuantity] = useState(1);
   const [itemName, setItemName] = useState('');
 
   const updatePantry = async () => {
@@ -42,34 +50,31 @@ export default function Home() {
   }
 
   useEffect( () => {
-      
     updatePantry()
   }, [])
 
-  const addItem = async (item) => {
+  const addItem = async (item, quantity) => {
     const docRef = doc(collection(firestore, 'pantry'), item)
     // Check if exists
     const docSnap = await getDoc(docRef)
     if (docSnap.exists()) {
       const {count} = docSnap.data()
-      await setDoc(docRef, {count: count + 1})
+      await setDoc(docRef, {count: count + quantity})
     } else {
-        await setDoc(docRef, {count: 1})
+        await setDoc(docRef, {count: quantity})
     }
     await updatePantry()
   }
 
-  const removeItem = async (item) => {
+  const removeItem = async (item, quantity) => {
     const docRef = doc(collection(firestore, 'pantry'), item)
     const docSnap = await getDoc(docRef)
     if (docSnap.exists()) {
       const {count} = docSnap.data()
-      if(count === 1){
+      await setDoc(docRef, {count: count - quantity})
+      if(count === 0){
         await deleteDoc(docRef)
-      } else {
-        await setDoc(docRef, {count: count - 1})
       }
-      
     }
     await updatePantry()
   }
@@ -147,9 +152,7 @@ export default function Home() {
             <Button
             variant="contained"
             onClick={ () =>{
-              removeItem(name)
-              setItemName('')
-              handleClose()
+              handleOpenRemoveModal(name)
             }}
             >
               Remove
@@ -159,10 +162,10 @@ export default function Home() {
         ))}
       </Stack>
       </Box>
-      <Button variant="contained" onClick={handleOpen}>Add</Button>
+      <Button variant="contained" onClick={handleOpenAddModal}>Add</Button>
       <Modal
-        open={open}
-        onClose={handleClose}
+        open={openAddModal}
+        onClose={handleCloseAddModal}
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
@@ -183,19 +186,66 @@ export default function Home() {
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
             />
+            <TextField
+              id="outlined-basic"
+              label="Quantity"
+              variant="outlined"
+              type="number"
+              fullWidth
+              value={itemQuantity}
+              onChange={(e) => setItemQuantity(parseInt(e.target.value))}
+            />
             <Button
             variant="outlined"
             onClick={ () =>{
-              addItem(itemName)
+              addItem(itemName, itemQuantity)
               setItemName('')
-              handleClose()
+              setItemQuantity(1)
+              handleCloseAddModal()
             }}
             >
               Add
             </Button>
           </Stack>
         </Box>
-      </Modal>    
+      </Modal>
+      <Modal
+        open={openRemoveModal}
+        onClose={handleCloseRemoveModal}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Remove Item
+          </Typography>
+          <Stack
+          width="100%"
+          direction={'row'}
+          spacing={2}
+          >
+            <TextField
+            id="outlined-basic"
+            label="Item"
+            variant="outlined"
+            type="number"
+            fullWidth
+            value={removeQuantity}
+            onChange={(e) => setRemoveQuantity(parseInt(e.target.value))}
+            />
+            <Button
+            variant="outlined"
+            onClick={ () =>{
+              removeItem(removeItemName, removeQuantity)
+              setRemoveQuantity(1)
+              handleCloseRemoveModal()
+            }}
+            >
+              Remove
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>       
     </Box>
   );
 }
